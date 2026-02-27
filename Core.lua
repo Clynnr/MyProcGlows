@@ -629,9 +629,9 @@ function addon:CheckSpellCooldowns()
                     if not activeGlows[button] or not addon:HasProcGlow(button) then
                         activeGlows[button] = true
                         if spellData.useDefaultColor then
-                            addon:ShowProcGlow(button, nil, nil, nil, spellData.procSound)
+                            addon:ShowProcGlow(button, nil, nil, nil, spellData.procSound, spellData.glowType)
                         else
-                            addon:ShowProcGlow(button, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound)
+                            addon:ShowProcGlow(button, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound, spellData.glowType)
                         end
                     end
                 else
@@ -663,9 +663,9 @@ function addon:CheckSpellCooldowns()
                         if not activeGlows[frame] or not addon:HasProcGlow(frame) then
                             activeGlows[frame] = true
                             if spellData.useDefaultColor then
-                                addon:ShowProcGlow(frame, nil, nil, nil, spellData.procSound)
+                                addon:ShowProcGlow(frame, nil, nil, nil, spellData.procSound, spellData.glowType)
                             else
-                                addon:ShowProcGlow(frame, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound)
+                                addon:ShowProcGlow(frame, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound, spellData.glowType)
                             end
                         end
                     else
