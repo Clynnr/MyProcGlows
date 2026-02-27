@@ -122,15 +122,14 @@ local function NormalizeGlowType(glowType)
 end
 
 local function StartGlow(button, glowType, opts)
-    local color = opts and opts.color
     if glowType == GLOW_TYPE_PIXEL and LCG.PixelGlow_Start then
-        LCG.PixelGlow_Start(button, color, nil, nil, nil, nil, nil, nil, nil, GLOW_KEY)
+        LCG.PixelGlow_Start(button, opts)
         return true
     elseif glowType == GLOW_TYPE_AUTOCAST and LCG.AutoCastGlow_Start then
-        LCG.AutoCastGlow_Start(button, color, nil, nil, nil, nil, nil, GLOW_KEY)
+        LCG.AutoCastGlow_Start(button, opts)
         return true
     elseif glowType == GLOW_TYPE_BUTTON and LCG.ButtonGlow_Start then
-        LCG.ButtonGlow_Start(button, color, nil, GLOW_KEY)
+        LCG.ButtonGlow_Start(button, opts)
         return true
     elseif LCG.ProcGlow_Start then
         LCG.ProcGlow_Start(button, opts)
@@ -152,15 +151,7 @@ local function StopGlow(button, glowType)
 end
 
 function addon:ShowProcGlow(button, r, g, b, soundKey, glowType)
-    if not LCG then
-        return
-    end
-    local selectedGlowType = NormalizeGlowType(glowType)
-    local hasStart = (selectedGlowType == GLOW_TYPE_PIXEL and LCG.PixelGlow_Start) or
-                         (selectedGlowType == GLOW_TYPE_AUTOCAST and LCG.AutoCastGlow_Start) or
-                         (selectedGlowType == GLOW_TYPE_BUTTON and LCG.ButtonGlow_Start) or
-                         LCG.ProcGlow_Start
-    if not hasStart then
+    if not LCG.ProcGlow_Start then
         if not lcgWarnedOnce then
             lcgWarnedOnce = true
             print("|cffff4444ProcGlows:|r LibCustomGlow did not fully initialize (glow start API is missing). " ..
@@ -173,6 +164,7 @@ function addon:ShowProcGlow(button, r, g, b, soundKey, glowType)
         startAnim = true,
         key = GLOW_KEY
     }
+    local selectedGlowType = NormalizeGlowType(glowType)
     if r then
         opts.color = {r, g, b, 1}
     end
@@ -273,7 +265,7 @@ function addon:CleanupOrphanedGlows()
 end
 
 function addon:HasProcGlow(button)
-    return allGlowingButtons[button] ~= nil or button["_ProcGlow" .. GLOW_KEY] ~= nil or button._PixelGlow or button._AutoCastGlow or button._ButtonGlow
+    return allGlowingButtons[button] ~= nil
 end
 
 function addon:FindButtonsForSlot(slot)
