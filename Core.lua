@@ -607,67 +607,65 @@ function addon:CheckItemCooldowns()
 end
 
 function addon:CheckSpellCooldowns()
-    if not addon.Spells then
-        return
-    end
+  if not addon.Spells then return end
+  local suppressed = addon:IsCombatOnly()
 
-    local suppressed = addon:IsCombatOnly()
+  for spellID, spellData in pairs(addon.Spells) do
+    local cdInfo = C_Spell.GetSpellCooldown(spellID)
+    local duration = cdInfo and cdInfo.duration or 0
+    local startTime = cdInfo and cdInfo.startTime or 0
+    local isOnGCD = cdInfo and cdInfo.isOnGCD
 
-    local onCooldown
-    local shouldGlow
+    local onCooldown = (startTime and startTime > 0) and (duration and duration > 0) and not isOnGCD
+    local usable = C_Spell.IsSpellUsable(spellID)
+    local shouldGlow = not suppressed and usable and not onCooldown
 
-    for spellID, spellData in pairs(addon.Spells) do
-        local buttons = spellAnchorCache[spellID]
-        if buttons then
-            local cdInfo = C_Spell.GetSpellCooldown(spellID)
-            for _, button in ipairs(buttons) do
-                onCooldown = button.cooldown:IsShown() and not cdInfo.isOnGCD
-                shouldGlow = not suppressed and C_Spell.IsSpellUsable(spellID) and not onCooldown
-
-                if shouldGlow then
-                    if not activeGlows[button] or not addon:HasProcGlow(button) then
-                        activeGlows[button] = true
-                        if spellData.useDefaultColor then
-                            addon:ShowProcGlow(button, nil, nil, nil, spellData.procSound, spellData.glowType)
-                        else
-                            addon:ShowProcGlow(button, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound, spellData.glowType)
-                        end
-                    end
-                else
-                    if activeGlows[button] then
-                        activeGlows[button] = nil
-                        addon:HideProcGlow(button)
-                    end
-                end
+    -- Action bar buttons
+    local buttons = spellAnchorCache[spellID]
+    if buttons then
+      for _, button in ipairs(buttons) do
+        if shouldGlow then
+          if not activeGlows[button] or not addon:HasProcGlow(button) then
+            activeGlows[button] = true
+            if spellData.useDefaultColor then
+              addon:ShowProcGlow(button, nil, nil, nil, spellData.procSound, spellData.glowType)
+            else
+              addon:ShowProcGlow(button, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound, spellData.glowType)
             end
+          end
+        else
+          if activeGlows[button] then
+            activeGlows[button] = nil
+            addon:HideProcGlow(button)
+          end
         end
+      end
     end
 
-    -- Glow spell icons in EssentialCooldownViewer (CooldownManager)
-    for spellID, spellData in pairs(addon.Spells) do
-        if spellData.glowCooldownManager then
-            local cdmFrames = cdmSpellFrameCache[spellID]
-            if cdmFrames then
-                for _, frame in ipairs(cdmFrames) do
-                    if shouldGlow then
-                        if not activeGlows[frame] or not addon:HasProcGlow(frame) then
-                            activeGlows[frame] = true
-                            if spellData.useDefaultColor then
-                                addon:ShowProcGlow(frame, nil, nil, nil, spellData.procSound, spellData.glowType)
-                            else
-                                addon:ShowProcGlow(frame, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound, spellData.glowType)
-                            end
-                        end
-                    else
-                        if activeGlows[frame] then
-                            activeGlows[frame] = nil
-                            addon:HideProcGlow(frame)
-                        end
-                    end
-                end
+    -- CooldownManager frames (EssentialCooldownViewer)
+    if spellData.glowCooldownManager then
+      local cdmFrames = cdmSpellFrameCache[spellID]
+      if cdmFrames then
+        for _, frame in ipairs(cdmFrames) do
+          if shouldGlow then
+            if not activeGlows[frame] or not addon:HasProcGlow(frame) then
+              activeGlows[frame] = true
+              if spellData.useDefaultColor then
+                addon:ShowProcGlow(frame, nil, nil, nil, spellData.procSound, spellData.glowType)
+              else
+                addon:ShowProcGlow(frame, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound, spellData.glowType)
+              end
             end
+          else
+            if activeGlows[frame] then
+              activeGlows[frame] = nil
+              addon:HideProcGlow(frame)
+            end
+          end
         end
+      end
     end
+  end
 end
 
 -- Hooks
