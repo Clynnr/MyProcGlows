@@ -616,6 +616,7 @@ function addon:CheckSpellCooldowns()
     local onCooldown
     local shouldGlow
 
+    -- Action bar buttons
     for spellID, spellData in pairs(addon.Spells) do
         local buttons = spellAnchorCache[spellID]
         if buttons then
@@ -648,8 +649,17 @@ function addon:CheckSpellCooldowns()
         if spellData.glowCooldownManager then
             local cdmFrames = cdmSpellFrameCache[spellID]
             if cdmFrames then
+                local cdInfo = C_Spell.GetSpellCooldown(spellID)
+
                 for _, frame in ipairs(cdmFrames) do
-                    if shouldGlow then
+                    -- Use the CDM frame’s own cooldown swipe if available (no API math, no secret numbers)
+                    local cooldownWidget = (frame and frame.Cooldown) or (frame and frame.cooldown)
+                    local cdmCooldownShown = cooldownWidget and cooldownWidget.IsShown and cooldownWidget:IsShown() or false
+
+                    local cdmOnCooldown = cdmCooldownShown and not cdInfo.isOnGCD
+                    local cdmShouldGlow = not suppressed and C_Spell.IsSpellUsable(spellID) and not cdmOnCooldown
+
+                    if cdmShouldGlow then
                         if not activeGlows[frame] or not addon:HasProcGlow(frame) then
                             activeGlows[frame] = true
                             if spellData.useDefaultColor then
