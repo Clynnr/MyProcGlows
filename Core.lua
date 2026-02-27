@@ -154,7 +154,7 @@ function addon:ShowProcGlow(button, r, g, b, soundKey, glowType)
     if not LCG.ProcGlow_Start then
         if not lcgWarnedOnce then
             lcgWarnedOnce = true
-            print("|cffff4444ProcGlows:|r LibCustomGlow did not fully initialize (ProcGlow_Start is missing). " ..
+            print("|cffff4444ProcGlows:|r LibCustomGlow did not fully initialize (glow start API is missing). " ..
                       "This is likely caused by a conflicting addon or a WoW build incompatibility with " ..
                       "the embedded LibCustomGlow-1.0 (version " .. (LCG.minor or "?") .. "). " .. "Glows will not display until this is resolved.")
         end
