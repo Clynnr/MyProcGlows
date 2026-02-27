@@ -9,6 +9,13 @@ local AceSerializer = LibStub("AceSerializer-3.0")
 local LibDeflate = LibStub("LibDeflate")
 local LSM = LibStub("LibSharedMedia-3.0")
 
+local GLOW_TYPE_VALUES = {
+    Proc = "Proc",
+    Pixel = "Pixel",
+    AutoCast = "AutoCast",
+    Button = "Button"
+}
+
 -- ─── Register custom sounds with LibSharedMedia ──────────────────────────────
 local SOUND_PATH = "Interface\\AddOns\\ProcGlows\\Media\\Sounds\\"
 local customSounds = {"AcousticGuitar", "Adds", "AirHorn", "Applause", "BananaPeelSlip", "BatmanPunch", "BikeHorn", "Blast", "Bleat", "Boss",
@@ -44,6 +51,13 @@ local defaults = {
         }
     }
 }
+
+local function NormalizeGlowType(glowType)
+    if GLOW_TYPE_VALUES[glowType] then
+        return glowType
+    end
+    return "Proc"
+end
 
 -- ─── Helpers ─────────────────────────────────────────────────────────────────
 local function SpellName(id)
@@ -166,6 +180,7 @@ function addon:RebuildTables()
                             glowIcon = entry.glowIcon,
                             useDefaultColor = entry.useDefaultColor,
                             procSound = entry.procSound,
+                            glowType = NormalizeGlowType(entry.glowType),
                             glowCooldownManager = entry.glowCooldownManager,
                             showStacks = entry.showStacks
                         }
@@ -189,7 +204,8 @@ function addon:RebuildTables()
                         b = entry.color.b
                     },
                     useDefaultColor = entry.useDefaultColor,
-                    procSound = entry.procSound
+                    procSound = entry.procSound,
+                    glowType = NormalizeGlowType(entry.glowType)
                 }
             end
         end
@@ -211,6 +227,7 @@ function addon:RebuildTables()
                             },
                             useDefaultColor = entry.useDefaultColor,
                             procSound = entry.procSound,
+                            glowType = NormalizeGlowType(entry.glowType),
                             glowCooldownManager = entry.glowCooldownManager
                         }
                     end
@@ -352,6 +369,7 @@ local newAura = {
     glowIcon = false,
     useDefaultColor = true,
     procSound = "None",
+    glowType = "Proc",
     glowCooldownManager = false,
     showStacks = false
 }
@@ -383,7 +401,8 @@ local newItem = {
     g = 0.5,
     b = 1,
     useDefaultColor = true,
-    procSound = "None"
+    procSound = "None",
+    glowType = "Proc"
 }
 local newSpell = {
     spellID = "",
@@ -392,6 +411,7 @@ local newSpell = {
     b = 0,
     useDefaultColor = true,
     procSound = "None",
+    glowType = "Proc",
     glowCooldownManager = false
 }
 
@@ -519,6 +539,20 @@ local function GetOptions()
                                     newAura.procSound = v
                                 end
                             },
+                            glowType = {
+                                type = "select",
+                                name = "Glow Type",
+                                desc = "Which LibCustomGlow style to use for this aura.",
+                                order = 5.55,
+                                width = "normal",
+                                values = GLOW_TYPE_VALUES,
+                                get = function()
+                                    return NormalizeGlowType(newAura.glowType)
+                                end,
+                                set = function(_, v)
+                                    newAura.glowType = NormalizeGlowType(v)
+                                end
+                            },
                             glowCooldownManager = {
                                 type = "toggle",
                                 name = "Glow CDM Spell Icon",
@@ -573,6 +607,7 @@ local function GetOptions()
                                         glowIcon = newAura.glowIcon,
                                         useDefaultColor = newAura.useDefaultColor,
                                         procSound = newAura.procSound,
+                                        glowType = NormalizeGlowType(newAura.glowType),
                                         glowCooldownManager = newAura.glowCooldownManager,
                                         showStacks = newAura.showStacks
                                     }
@@ -587,6 +622,7 @@ local function GetOptions()
                                     newAura.glowIcon = false
                                     newAura.useDefaultColor = true
                                     newAura.procSound = "None"
+                                    newAura.glowType = "Proc"
                                     newAura.glowCooldownManager = false
                                     newAura.showStacks = false
                                     print("|cff00ff00[ProcGlows]|r Aura added: " .. SpellName(buffID) .. " (" .. buffID .. ")")
@@ -673,6 +709,20 @@ local function GetOptions()
                                     newItem.procSound = v
                                 end
                             },
+                            glowType = {
+                                type = "select",
+                                name = "Glow Type",
+                                desc = "Which LibCustomGlow style to use for this item.",
+                                order = 2.8,
+                                width = "normal",
+                                values = GLOW_TYPE_VALUES,
+                                get = function()
+                                    return NormalizeGlowType(newItem.glowType)
+                                end,
+                                set = function(_, v)
+                                    newItem.glowType = NormalizeGlowType(v)
+                                end
+                            },
                             add = {
                                 type = "execute",
                                 name = "Add Item",
@@ -692,7 +742,8 @@ local function GetOptions()
                                             b = newItem.b
                                         },
                                         useDefaultColor = newItem.useDefaultColor,
-                                        procSound = newItem.procSound
+                                        procSound = newItem.procSound,
+                                        glowType = NormalizeGlowType(newItem.glowType)
                                     }
                                     addon:RebuildTables()
                                     newItem.itemID = ""
@@ -701,6 +752,7 @@ local function GetOptions()
                                     newItem.b = 1
                                     newItem.useDefaultColor = true
                                     newItem.procSound = "None"
+                                    newItem.glowType = "Proc"
                                     print("|cff00ff00[ProcGlows]|r Item added: " .. ItemName(id) .. " (" .. id .. ")")
                                 end
                             }
@@ -784,6 +836,20 @@ local function GetOptions()
                                     newSpell.procSound = v
                                 end
                             },
+                            glowType = {
+                                type = "select",
+                                name = "Glow Type",
+                                desc = "Which LibCustomGlow style to use for this spell.",
+                                order = 2.75,
+                                width = "normal",
+                                values = GLOW_TYPE_VALUES,
+                                get = function()
+                                    return NormalizeGlowType(newSpell.glowType)
+                                end,
+                                set = function(_, v)
+                                    newSpell.glowType = NormalizeGlowType(v)
+                                end
+                            },
                             glowCooldownManager = {
                                 type = "toggle",
                                 name = "Glow CDM Spell Icon",
@@ -817,6 +883,7 @@ local function GetOptions()
                                         },
                                         useDefaultColor = newSpell.useDefaultColor,
                                         procSound = newSpell.procSound,
+                                        glowType = NormalizeGlowType(newSpell.glowType),
                                         glowCooldownManager = newSpell.glowCooldownManager
                                     }
                                     addon:RebuildTables()
@@ -826,6 +893,7 @@ local function GetOptions()
                                     newSpell.b = 0
                                     newSpell.useDefaultColor = true
                                     newSpell.procSound = "None"
+                                    newSpell.glowType = "Proc"
                                     newSpell.glowCooldownManager = false
                                     print("|cff00ff00[ProcGlows]|r Spell added: " .. SpellName(id) .. " (" .. id .. ")")
                                 end
@@ -1150,6 +1218,21 @@ local function GetOptions()
                                         addon:RebuildTables()
                                     end
                                 },
+                                glowType = {
+                                    type = "select",
+                                    name = "Glow Type",
+                                    desc = "Which LibCustomGlow style to use for this aura.",
+                                    order = 6.1,
+                                    width = "normal",
+                                    values = GLOW_TYPE_VALUES,
+                                    get = function()
+                                        return NormalizeGlowType(entry.glowType)
+                                    end,
+                                    set = function(_, v)
+                                        entry.glowType = NormalizeGlowType(v)
+                                        addon:RebuildTables()
+                                    end
+                                },
                                 spacer = {
                                     type = "description",
                                     name = "",
@@ -1248,6 +1331,21 @@ local function GetOptions()
                     end,
                     set = function(_, v)
                         entry.procSound = v
+                        addon:RebuildTables()
+                    end
+                },
+                glowType = {
+                    type = "select",
+                    name = "Glow Type",
+                    desc = "Which LibCustomGlow style to use for this item.",
+                    order = 3.2,
+                    width = "normal",
+                    values = GLOW_TYPE_VALUES,
+                    get = function()
+                        return NormalizeGlowType(entry.glowType)
+                    end,
+                    set = function(_, v)
+                        entry.glowType = NormalizeGlowType(v)
                         addon:RebuildTables()
                     end
                 },
@@ -1354,6 +1452,21 @@ local function GetOptions()
                                 end,
                                 set = function(_, v)
                                     entry.procSound = v
+                                    addon:RebuildTables()
+                                end
+                            },
+                            glowType = {
+                                type = "select",
+                                name = "Glow Type",
+                                desc = "Which LibCustomGlow style to use for this spell.",
+                                order = 3.2,
+                                width = "normal",
+                                values = GLOW_TYPE_VALUES,
+                                get = function()
+                                    return NormalizeGlowType(entry.glowType)
+                                end,
+                                set = function(_, v)
+                                    entry.glowType = NormalizeGlowType(v)
                                     addon:RebuildTables()
                                 end
                             },
