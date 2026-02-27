@@ -39,6 +39,7 @@ local defaults = {
             -- each entry: { color = {r,g,b} }
         },
         combatOnly = false,
+        glowStyle = "proc",
         hideAnimations = {
             castbar = true
         }
@@ -934,11 +935,38 @@ local function GetOptions()
                     }
                 }
             },
+            -- ── General tab ──────────────────────────────────────────────
+            general = {
+                type = "group",
+                name = "General",
+                order = 4,
+                args = {
+                    glowStyle = {
+                        type = "select",
+                        name = "Glow Style",
+                        desc = "Choose which LibCustomGlow style ProcGlows uses.",
+                        order = 1,
+                        width = "full",
+                        values = {
+                            proc = "ProcGlow (default)",
+                            pixel = "PixelGlow",
+                            button = "ButtonGlow",
+                            autocast = "AutoCastGlow"
+                        },
+                        get = function()
+                            return (addon.db and addon.db.profile and addon.db.profile.glowStyle) or "proc"
+                        end,
+                        set = function(_, v)
+                            addon.db.profile.glowStyle = v
+                        end
+                    }
+                }
+            },
             -- ── Settings tab ─────────────────────────────────────────────
             settings = {
                 type = "group",
                 name = "Settings",
-                order = 4,
+                order = 5,
                 args = {
                     generalHeader = {
                         type = "header",
