@@ -33,6 +33,21 @@ local BUTTON_PREFIXES = {"ActionButton", "MultiBarBottomLeftButton", "MultiBarBo
                          "MultiBar5Button", "MultiBar6Button", "MultiBar7Button", "MultiBar8Button"}
 local MAX_ACTION_SLOT = 180
 
+local function StopAllGlowTypes(button)
+    if LCG.ProcGlow_Stop then
+        LCG.ProcGlow_Stop(button, GLOW_KEY)
+    end
+    if LCG.PixelGlow_Stop then
+        LCG.PixelGlow_Stop(button, GLOW_KEY)
+    end
+    if LCG.ButtonGlow_Stop then
+        LCG.ButtonGlow_Stop(button, GLOW_KEY)
+    end
+    if LCG.AutoCastGlow_Stop then
+        LCG.AutoCastGlow_Stop(button, GLOW_KEY)
+    end
+end
+
 -- ─── Third-party action bar support (Bartender4, Dominos, ElvUI) ─────────────
 
 -- Returns the action slot for both Blizzard (.action) and LAB-based (._state_action) buttons
@@ -111,30 +126,59 @@ function addon:HideStackCount(frame)
 end
 
 function addon:ShowProcGlow(button, r, g, b, soundKey)
-    if not LCG.ProcGlow_Start then
-        if not lcgWarnedOnce then
-            lcgWarnedOnce = true
-            print("|cffff4444ProcGlows:|r LibCustomGlow did not fully initialize (ProcGlow_Start is missing). " ..
-                      "This is likely caused by a conflicting addon or a WoW build incompatibility with " ..
-                      "the embedded LibCustomGlow-1.0 (version " .. (LCG.minor or "?") .. "). " .. "Glows will not display until this is resolved.")
+    local glowStyle = (addon.db and addon.db.profile and addon.db.profile.glowStyle) or "proc"
+    local color = r and {r, g, b, 1} or nil
+
+    StopAllGlowTypes(button)
+
+    local didStartGlow = false
+    if glowStyle == "pixel" then
+        if LCG.PixelGlow_Start then
+            LCG.PixelGlow_Start(button, color, 8, 0.25, 8, 2, 0, 0, false, GLOW_KEY)
+            didStartGlow = true
         end
+    elseif glowStyle == "button" then
+        if LCG.ButtonGlow_Start then
+            LCG.ButtonGlow_Start(button, color, GLOW_KEY)
+            didStartGlow = true
+        end
+    elseif glowStyle == "autocast" then
+        if LCG.AutoCastGlow_Start then
+            LCG.AutoCastGlow_Start(button, color, GLOW_KEY)
+            didStartGlow = true
+        end
+    else
+        if not LCG.ProcGlow_Start then
+            if not lcgWarnedOnce then
+                lcgWarnedOnce = true
+                print("|cffff4444ProcGlows:|r LibCustomGlow did not fully initialize (ProcGlow_Start is missing). " ..
+                          "This is likely caused by a conflicting addon or a WoW build incompatibility with " ..
+                          "the embedded LibCustomGlow-1.0 (version " .. (LCG.minor or "?") .. "). " .. "Glows will not display until this is resolved.")
+            end
+            return
+        end
+        local opts = {
+            startAnim = true,
+            key = GLOW_KEY
+        }
+        if color then
+            opts.color = color
+        end
+        LCG.ProcGlow_Start(button, opts)
+        -- After the initial start animation fires, disable it so that parent
+        -- hide/show cycles (e.g. BuffIconCooldownViewer recycling frames on
+        -- target switch) resume the loop instead of replaying the intro.
+        local glowFrame = button["_ProcGlow" .. GLOW_KEY]
+        if glowFrame then
+            glowFrame.startAnim = false
+        end
+        didStartGlow = true
+    end
+
+    if not didStartGlow then
         return
     end
-    local opts = {
-        startAnim = true,
-        key = GLOW_KEY
-    }
-    if r then
-        opts.color = {r, g, b, 1}
-    end
-    LCG.ProcGlow_Start(button, opts)
-    -- After the initial start animation fires, disable it so that parent
-    -- hide/show cycles (e.g. BuffIconCooldownViewer recycling frames on
-    -- target switch) resume the loop instead of replaying the intro.
-    local glowFrame = button["_ProcGlow" .. GLOW_KEY]
-    if glowFrame then
-        glowFrame.startAnim = false
-    end
+
     if not allGlowingButtons[button] then
         -- Play per-entry proc sound
         if soundKey and soundKey ~= "None" then
@@ -148,18 +192,14 @@ function addon:ShowProcGlow(button, r, g, b, soundKey)
 end
 
 function addon:HideProcGlow(button)
-    if LCG.ProcGlow_Stop then
-        LCG.ProcGlow_Stop(button, GLOW_KEY)
-    end
+    StopAllGlowTypes(button)
     allGlowingButtons[button] = nil
     addon:HideStackCount(button)
 end
 
 function addon:HideAllGlows()
     for button in pairs(allGlowingButtons) do
-        if LCG.ProcGlow_Stop then
-            LCG.ProcGlow_Stop(button, GLOW_KEY)
-        end
+        StopAllGlowTypes(button)
         activeGlows[button] = nil
         addon:HideStackCount(button)
     end
@@ -213,9 +253,7 @@ function addon:CleanupOrphanedGlows()
     -- Remove glows from buttons that are no longer in any cache
     for button in pairs(allGlowingButtons) do
         if not cached[button] then
-            if LCG.ProcGlow_Stop then
-                LCG.ProcGlow_Stop(button, GLOW_KEY)
-            end
+            StopAllGlowTypes(button)
             allGlowingButtons[button] = nil
             activeGlows[button] = nil
         end
@@ -223,7 +261,7 @@ function addon:CleanupOrphanedGlows()
 end
 
 function addon:HasProcGlow(button)
-    return button["_ProcGlow" .. GLOW_KEY] ~= nil
+    return allGlowingButtons[button] == true
 end
 
 function addon:FindButtonsForSlot(slot)
