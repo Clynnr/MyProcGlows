@@ -613,14 +613,17 @@ function addon:CheckSpellCooldowns()
 
     local suppressed = addon:IsCombatOnly()
 
+    local onCooldown
+    local shouldGlow
+
     for spellID, spellData in pairs(addon.Spells) do
         local buttons = spellAnchorCache[spellID]
-        local cdInfo = C_Spell.GetSpellCooldown(spellID)
-        local onCooldown = cdInfo and cdInfo.duration and cdInfo.duration > 0 and not cdInfo.isOnGCD
-        local shouldGlow = not suppressed and C_Spell.IsSpellUsable(spellID) and not onCooldown
-
         if buttons then
+            local cdInfo = C_Spell.GetSpellCooldown(spellID)
             for _, button in ipairs(buttons) do
+                onCooldown = button.cooldown:IsShown() and not cdInfo.isOnGCD
+                shouldGlow = not suppressed and C_Spell.IsSpellUsable(spellID) and not onCooldown
+
                 if shouldGlow then
                     if not activeGlows[button] or not addon:HasProcGlow(button) then
                         activeGlows[button] = true
@@ -643,9 +646,6 @@ function addon:CheckSpellCooldowns()
     -- Glow spell icons in EssentialCooldownViewer (CooldownManager)
     for spellID, spellData in pairs(addon.Spells) do
         if spellData.glowCooldownManager then
-            local cdInfo = C_Spell.GetSpellCooldown(spellID)
-            local onCooldown = cdInfo and cdInfo.duration and cdInfo.duration > 0 and not cdInfo.isOnGCD
-            local shouldGlow = not suppressed and C_Spell.IsSpellUsable(spellID) and not onCooldown
             local cdmFrames = cdmSpellFrameCache[spellID]
             if cdmFrames then
                 for _, frame in ipairs(cdmFrames) do
