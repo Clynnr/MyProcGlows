@@ -1,7 +1,7 @@
 ## Interface: 120000, 120001
 ## Author: muleyo
 ## Version: @project-version@
-## Title: |cff009cffmuleyo's|r |cffffd100ProcGlows|r
+## Title: |cff009cffmuleyo's|r |cffffd100ProcGlows-TOES|r
 ## IconTexture: Interface\Icons\Spell_Holy_SurgeOfLight
 ## X-Curse-Project-ID: 1461238
 ## SavedVariables: muleyoProcGlowDB
