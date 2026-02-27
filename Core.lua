@@ -123,13 +123,27 @@ end
 
 local function StartGlow(button, glowType, opts)
     if glowType == GLOW_TYPE_PIXEL and LCG.PixelGlow_Start then
-        LCG.PixelGlow_Start(button, opts)
+        local ok = pcall(LCG.PixelGlow_Start, button, opts)
+        if ok then
+            return true
+        end
+        -- Fallback for LibCustomGlow versions that still use positional
+        -- arguments instead of an options table.
+        LCG.PixelGlow_Start(button, opts.color, nil, nil, nil, nil, nil, nil, nil, opts.key)
         return true
     elseif glowType == GLOW_TYPE_AUTOCAST and LCG.AutoCastGlow_Start then
-        LCG.AutoCastGlow_Start(button, opts)
+        local ok = pcall(LCG.AutoCastGlow_Start, button, opts)
+        if ok then
+            return true
+        end
+        LCG.AutoCastGlow_Start(button, opts.color, nil, nil, nil, nil, nil, opts.key)
         return true
     elseif glowType == GLOW_TYPE_BUTTON and LCG.ButtonGlow_Start then
-        LCG.ButtonGlow_Start(button, opts)
+        local ok = pcall(LCG.ButtonGlow_Start, button, opts)
+        if ok then
+            return true
+        end
+        LCG.ButtonGlow_Start(button, opts.color, nil, opts.key)
         return true
     elseif LCG.ProcGlow_Start then
         LCG.ProcGlow_Start(button, opts)
