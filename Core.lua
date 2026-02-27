@@ -29,6 +29,10 @@ local spellCacheDirty = true
 local itemCacheDirty = true
 local stackTexts = {}
 local LSM = LibStub("LibSharedMedia-3.0")
+local GLOW_TYPE_PROC = "Proc"
+local GLOW_TYPE_PIXEL = "Pixel"
+local GLOW_TYPE_AUTOCAST = "AutoCast"
+local GLOW_TYPE_BUTTON = "Button"
 local BUTTON_PREFIXES = {"ActionButton", "MultiBarBottomLeftButton", "MultiBarBottomRightButton", "MultiBarRightButton", "MultiBarLeftButton",
                          "MultiBar5Button", "MultiBar6Button", "MultiBar7Button", "MultiBar8Button"}
 local MAX_ACTION_SLOT = 180
@@ -110,7 +114,43 @@ function addon:HideStackCount(frame)
     end
 end
 
-function addon:ShowProcGlow(button, r, g, b, soundKey)
+local function NormalizeGlowType(glowType)
+    if glowType == GLOW_TYPE_PIXEL or glowType == GLOW_TYPE_AUTOCAST or glowType == GLOW_TYPE_BUTTON then
+        return glowType
+    end
+    return GLOW_TYPE_PROC
+end
+
+local function StartGlow(button, glowType, opts)
+    if glowType == GLOW_TYPE_PIXEL and LCG.PixelGlow_Start then
+        LCG.PixelGlow_Start(button, opts)
+        return true
+    elseif glowType == GLOW_TYPE_AUTOCAST and LCG.AutoCastGlow_Start then
+        LCG.AutoCastGlow_Start(button, opts)
+        return true
+    elseif glowType == GLOW_TYPE_BUTTON and LCG.ButtonGlow_Start then
+        LCG.ButtonGlow_Start(button, opts)
+        return true
+    elseif LCG.ProcGlow_Start then
+        LCG.ProcGlow_Start(button, opts)
+        return true
+    end
+    return false
+end
+
+local function StopGlow(button, glowType)
+    if glowType == GLOW_TYPE_PIXEL and LCG.PixelGlow_Stop then
+        LCG.PixelGlow_Stop(button, GLOW_KEY)
+    elseif glowType == GLOW_TYPE_AUTOCAST and LCG.AutoCastGlow_Stop then
+        LCG.AutoCastGlow_Stop(button, GLOW_KEY)
+    elseif glowType == GLOW_TYPE_BUTTON and LCG.ButtonGlow_Stop then
+        LCG.ButtonGlow_Stop(button, GLOW_KEY)
+    elseif LCG.ProcGlow_Stop then
+        LCG.ProcGlow_Stop(button, GLOW_KEY)
+    end
+end
+
+function addon:ShowProcGlow(button, r, g, b, soundKey, glowType)
     if not LCG.ProcGlow_Start then
         if not lcgWarnedOnce then
             lcgWarnedOnce = true
@@ -124,10 +164,18 @@ function addon:ShowProcGlow(button, r, g, b, soundKey)
         startAnim = true,
         key = GLOW_KEY
     }
+    local selectedGlowType = NormalizeGlowType(glowType)
     if r then
         opts.color = {r, g, b, 1}
     end
-    LCG.ProcGlow_Start(button, opts)
+    local activeGlowType = allGlowingButtons[button]
+    if activeGlowType and activeGlowType ~= selectedGlowType then
+        StopGlow(button, activeGlowType)
+        allGlowingButtons[button] = nil
+    end
+    if not StartGlow(button, selectedGlowType, opts) then
+        return
+    end
     -- After the initial start animation fires, disable it so that parent
     -- hide/show cycles (e.g. BuffIconCooldownViewer recycling frames on
     -- target switch) resume the loop instead of replaying the intro.
@@ -144,22 +192,18 @@ function addon:ShowProcGlow(button, r, g, b, soundKey)
             end
         end
     end
-    allGlowingButtons[button] = true
+    allGlowingButtons[button] = selectedGlowType
 end
 
 function addon:HideProcGlow(button)
-    if LCG.ProcGlow_Stop then
-        LCG.ProcGlow_Stop(button, GLOW_KEY)
-    end
+    StopGlow(button, allGlowingButtons[button])
     allGlowingButtons[button] = nil
     addon:HideStackCount(button)
 end
 
 function addon:HideAllGlows()
     for button in pairs(allGlowingButtons) do
-        if LCG.ProcGlow_Stop then
-            LCG.ProcGlow_Stop(button, GLOW_KEY)
-        end
+        StopGlow(button, allGlowingButtons[button])
         activeGlows[button] = nil
         addon:HideStackCount(button)
     end
@@ -213,9 +257,7 @@ function addon:CleanupOrphanedGlows()
     -- Remove glows from buttons that are no longer in any cache
     for button in pairs(allGlowingButtons) do
         if not cached[button] then
-            if LCG.ProcGlow_Stop then
-                LCG.ProcGlow_Stop(button, GLOW_KEY)
-            end
+            StopGlow(button, allGlowingButtons[button])
             allGlowingButtons[button] = nil
             activeGlows[button] = nil
         end
@@ -223,7 +265,7 @@ function addon:CleanupOrphanedGlows()
 end
 
 function addon:HasProcGlow(button)
-    return button["_ProcGlow" .. GLOW_KEY] ~= nil
+    return allGlowingButtons[button] ~= nil
 end
 
 function addon:FindButtonsForSlot(slot)
@@ -451,9 +493,9 @@ function addon:CheckAuras()
                     if not activeGlows[aura] or not addon:HasProcGlow(aura) then
                         activeGlows[aura] = true
                         if iconGlowData.useDefaultColor then
-                            addon:ShowProcGlow(aura, nil, nil, nil, iconGlowData.procSound)
+                            addon:ShowProcGlow(aura, nil, nil, nil, iconGlowData.procSound, iconGlowData.glowType)
                         else
-                            addon:ShowProcGlow(aura, iconGlowData.color.r, iconGlowData.color.g, iconGlowData.color.b, iconGlowData.procSound)
+                            addon:ShowProcGlow(aura, iconGlowData.color.r, iconGlowData.color.g, iconGlowData.color.b, iconGlowData.procSound, iconGlowData.glowType)
                         end
                     end
                 else
@@ -475,9 +517,9 @@ function addon:CheckAuras()
                         if aura.Cooldown:IsShown() and not suppressed then
                             if not addon:HasProcGlow(button) then
                                 if auraData.useDefaultColor then
-                                    addon:ShowProcGlow(button, nil, nil, nil, auraData.procSound)
+                                    addon:ShowProcGlow(button, nil, nil, nil, auraData.procSound, auraData.glowType)
                                 else
-                                    addon:ShowProcGlow(button, auraData.color.r, auraData.color.g, auraData.color.b, auraData.procSound)
+                                    addon:ShowProcGlow(button, auraData.color.r, auraData.color.g, auraData.color.b, auraData.procSound, auraData.glowType)
                                 end
                             end
                             -- Show stack count on the action button
@@ -499,9 +541,9 @@ function addon:CheckAuras()
                                 if not activeGlows[frame] or not addon:HasProcGlow(frame) then
                                     activeGlows[frame] = true
                                     if auraData.useDefaultColor then
-                                        addon:ShowProcGlow(frame, nil, nil, nil, auraData.procSound)
+                                        addon:ShowProcGlow(frame, nil, nil, nil, auraData.procSound, auraData.glowType)
                                     else
-                                        addon:ShowProcGlow(frame, auraData.color.r, auraData.color.g, auraData.color.b, auraData.procSound)
+                                        addon:ShowProcGlow(frame, auraData.color.r, auraData.color.g, auraData.color.b, auraData.procSound, auraData.glowType)
                                     end
                                 end
                                 -- Show stack count on the CDM spell frame
@@ -537,9 +579,9 @@ function addon:CheckItemCooldowns()
                 if not suppressed and C_Item.GetItemCount(item.itemID) > 0 and C_Item.IsUsableItem(item.itemID) and (not button.cooldown:IsShown()) then
                     if not addon:HasProcGlow(button) then
                         if item.useDefaultColor then
-                            addon:ShowProcGlow(button, nil, nil, nil, item.procSound)
+                            addon:ShowProcGlow(button, nil, nil, nil, item.procSound, item.glowType)
                         else
-                            addon:ShowProcGlow(button, item.color.r, item.color.g, item.color.b, item.procSound)
+                            addon:ShowProcGlow(button, item.color.r, item.color.g, item.color.b, item.procSound, item.glowType)
                         end
                     end
                 else
@@ -572,9 +614,9 @@ function addon:CheckSpellCooldowns()
                     if not activeGlows[button] or not addon:HasProcGlow(button) then
                         activeGlows[button] = true
                         if spellData.useDefaultColor then
-                            addon:ShowProcGlow(button, nil, nil, nil, spellData.procSound)
+                            addon:ShowProcGlow(button, nil, nil, nil, spellData.procSound, spellData.glowType)
                         else
-                            addon:ShowProcGlow(button, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound)
+                            addon:ShowProcGlow(button, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound, spellData.glowType)
                         end
                     end
                 else
@@ -597,9 +639,9 @@ function addon:CheckSpellCooldowns()
                         if not activeGlows[frame] or not addon:HasProcGlow(frame) then
                             activeGlows[frame] = true
                             if spellData.useDefaultColor then
-                                addon:ShowProcGlow(frame, nil, nil, nil, spellData.procSound)
+                                addon:ShowProcGlow(frame, nil, nil, nil, spellData.procSound, spellData.glowType)
                             else
-                                addon:ShowProcGlow(frame, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound)
+                                addon:ShowProcGlow(frame, spellData.color.r, spellData.color.g, spellData.color.b, spellData.procSound, spellData.glowType)
                             end
                         end
                     else
